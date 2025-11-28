@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home Recommender Demo (v2.0)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Áp dụng font Inter làm font chữ mặc định */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        /* Tùy chỉnh thanh cuộn cho chatbot */
+        #chat-history {
+            scroll-behavior: smooth;
+        }
+        #chat-history::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-history::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        #chat-history::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        #chat-history::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Ẩn thanh cuộn mặc định của trình duyệt nếu cần */
+        html {
+            overflow-y: auto; /* Giữ thanh cuộn chính */
+        }
+        
+        /* Hiệu ứng loading cho chatbot */
+        .loader {
+            width: 16px;
+            height: 16px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 4px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* === PHẦN SỬA LỖI === */
+        
+        /* Style cho nút lọc sản phẩm (CSS tiêu chuẩn) */
+        .filter-btn {
+            padding-left: 1rem; /* px-4 */
+            padding-right: 1rem; /* px-4 */
+            padding-top: 0.5rem; /* py-2 */
+            padding-bottom: 0.5rem; /* py-2 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 500; /* font-medium */
+            font-size: 0.875rem; /* text-sm */
+            transition-property: color, background-color; /* transition-colors */
+            transition-duration: 200ms; /* duration-200 */
+        }
+        
+        .filter-btn.active {
+            background-color: #2563eb; /* bg-blue-600 */
+            color: #ffffff; /* text-white */
+        }
+        
+        .filter-btn:not(.active) {
+            background-color: #ffffff; /* bg-white */
+            color: #374151; /* text-gray-700 */
+        }
+        
+        .filter-btn:not(.active):hover {
+            background-color: #f3f4f6; /* hover:bg-gray-100 */
+        }
+        
+        /* Thêm style cho nút Like/Dislike (CSS tiêu chuẩn) */
+        .feedback-btn {
+            padding-left: 0.5rem; /* px-2 */
+            padding-right: 0.5rem; /* px-2 */
+            padding-top: 0.25rem; /* py-1 */
+            padding-bottom: 0.25rem; /* py-1 */
+            border-radius: 9999px; /* rounded-full */
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 600; /* font-semibold */
+            transition-property: color, background-color;
+            transition-duration: 200ms;
+        }
+        
+        .like-btn {
+            background-color: #dcfce7; /* bg-green-100 */
+            color: #166534; /* text-green-700 */
+        }
+        .like-btn:hover {
+            background-color: #bbf7d0; /* hover:bg-green-200 */
+        }
+        
+        .dislike-btn {
+            background-color: #fee2e2; /* bg-red-100 */
+            color: #991b1b; /* text-red-700 */
+        }
+        .dislike-btn:hover {
+            background-color: #fecaca; /* hover:bg-red-200 */
+        }
+        
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+    <div class="container mx-auto max-w-7xl p-4 lg:p-8">
+        <h1 class="text-3xl lg:text-4xl font-bold text-gray-800 mb-6">Gợi Ý Thiết Bị Gia Dụng Thông Minh (v2.0)</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+
+            <div class="lg:col-span-2 space-y-8">
+                
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <label for="user-select" class="block text-sm font-medium text-gray-700 mb-2">Chọn người dùng:</label>
+                    <select id="user-select" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
+                        </select>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl font-semibold mb-4" id="recommendation-title">Gợi ý cho bạn</h2>
+                    <div id="recommendation-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        </div>
+                </div>
+
+                <div>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+                        <h2 class="text-2xl font-semibold">Tất cả sản phẩm</h2>
+                        <div id="filter-toolbar" class="flex flex-wrap gap-2 mt-4 md:mt-0">
+                            </div>
+                    </div>
+                    <div id="all-products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        </div>
+                </div>
+
+            </div>
+
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-md lg:sticky lg:top-8" style="height: calc(100vh - 4rem);">
+                    <div class="flex flex-col h-full">
+                        <div class="p-4 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-800">🤖 AI Chatbot Tư Vấn</h2>
+                            <p id="chatbot-subtitle" class="text-sm text-gray-500">Hỏi tôi bất cứ điều gì!</p>
+                        </div>
+
+                        <div id="chat-history" class="flex-1 p-4 space-y-4 overflow-y-auto">
+                            <div class="flex">
+                                <span class="flex-shrink-0 bg-blue-500 text-white text-sm font-semibold rounded-full h-8 w-8 items-center justify-center flex mr-3">AI</span>
+                                <div class="bg-blue-100 text-gray-800 p-3 rounded-lg max-w-xs">
+                                    <p>Xin chào! Tôi có thể giúp bạn chọn thiết bị gia dụng thông minh nào hôm nay?</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="chat-input" class="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50" placeholder="Nhập tin nhắn...">
+                                <button id="send-button" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
+                                    Gửi
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DATA LAYER (Giả lập dữ liệu) ---
+
+        const users = [
+            { id: 1, name: "An (Yêu công nghệ)", age: 28, budget: "high", interest: "entertainment", home_size: "medium" },
+            { id: 2, name: "Bình (Nội trợ)", age: 45, budget: "medium", interest: "kitchen", home_size: "large" },
+            { id: 3, name: "Chi (Tiết kiệm)", age: 35, budget: "low", interest: "utility", home_size: "small" },
+            { id: 4, name: "Dũng (Game thủ)", age: 22, budget: "medium", interest: "entertainment", home_size: "small" }
+        ];
+
+        const products = [
+            // CẬP NHẬT: Thêm trường `imageUrl` để dễ dàng thay đổi ảnh
+            { id: 101, name: "TV OLED 8K 65-inch", brand: "LG", category: "entertainment", price: 2500, price_range: "high", features: ["AI", "8K", "WebOS"], description: "TV thông minh 8K với AI nâng cấp hình ảnh.", imageUrl: "image/tv_oled_8k.jpg" },
+            { id: 102, name: "Tủ lạnh Smart InstaView", brand: "Samsung", category: "kitchen", price: 1800, price_range: "high", features: ["Inverter", "Lấy đá ngoài", "Màn hình"], description: "Tủ lạnh side-by-side với màn hình cảm ứng.", imageUrl: "image/tu_lanh.jpg" },
+            { id: 103, name: "Robot hút bụi Roomba X", brand: "iRobot", category: "utility", price: 800, price_range: "medium", features: ["AI", "Tự sạc", "Lau nhà"], description: "Robot tự động lập bản đồ nhà và lau dọn.", imageUrl: "image/robot.jpg" },
+            { id: 104, name: "Nồi chiên không dầu Smart", brand: "Philips", category: "kitchen", price: 300, price_range: "medium", features: ["App control", "Hẹn giờ"], description: "Điều khiển qua app, nấu ăn lành mạnh.", imageUrl: "image/noi_chien.jpg" },
+            { id: 105, name: "Đèn thông minh (Bộ 3)", brand: "Hue", category: "lighting", price: 150, price_range: "low", features: ["RGB", "App control", "Ra lệnh giọng nói"], description: "Bộ 3 bóng đèn đổi màu, điều khiển qua app.", imageUrl: "image/den_thong_minh.jpg" },
+            { id: 106, name: "Ổ cắm thông minh", brand: "Xiaomi", category: "utility", price: 25, price_range: "low", features: ["Hẹn giờ", "App control"], description: "Biến thiết bị thường thành thông minh.", imageUrl: "image/o_cam.jpg" },
+            { id: 107, name: "Loa thông minh Echo Dot", brand: "Amazon", category: "entertainment", price: 50, price_range: "low", features: ["Alexa", "Ra lệnh giọng nói", "Nghe nhạc"], description: "Loa trợ lý ảo Alexa, điều khiển nhà.", imageUrl: "image/loa_echo.jpg" },
+            { id: 108, name: "Camera an ninh AI", brand: "Google", category: "security", price: 200, price_range: "medium", features: ["AI", "Phát hiện người", "Cloud"], description: "Camera an ninh với AI phát hiện người lạ.", imageUrl: "image/camera_ai.jpg" },
+            { id: 109, name: "Robot hút bụi Eufy Omni E28", brand: "iRobot", category: "utility", price: 1200, price_range: "medium", features: ["AI", "Tự sạc", "Lau nhà"], description: "Robot tự động lập bản đồ nhà và lau dọn, tự vệ sinh.", imageUrl: "image/robot2.jpg" },
+        ];
+
+        // Định nghĩa các danh mục (từ dữ liệu sản phẩm)
+        const categories = [...new Set(products.map(p => p.category))]; // Lấy danh sách duy nhất
+        const categoryDisplayNames = {
+            'entertainment': 'Giải trí',
+            'kitchen': 'Nội trợ',
+            'utility': 'Tiện ích',
+            'lighting': 'Chiếu sáng',
+            'security': 'An ninh'
+        };
+
+        // --- 2. MODEL LAYER (Mô hình gợi ý) ---
+        
+        // MỚI: Biến toàn cục lưu trữ người dùng đang chọn
+        let selectedUser = users[0];
+        
+        // MỚI: Biến lưu trữ "sở thích" mô phỏng từ việc bấm like
+        let simulatedUserInterests = {}; // { 1: { 'kitchen': 1, 'entertainment': 1 } } (userId: { categoryName: score })
+
+        // MỚI: Biến lưu trữ các SẢN PHẨM CỤ THỂ bị "chặn"
+        let bannedProducts = {}; // { 1: { 104: true } } (userId: { productId: true })
+
+        /**
+         * CẬP NHẬT: Hàm tính điểm phù hợp
+         * Giờ đây trả về { score, reasons } để dùng cho (Explainable AI - XAI)
+         */
+        function calculateMatchScore(user, product) {
+            let score = 0;
+            let reasons = []; // Mảng lý do
+
+            // 1. Khớp sở thích chính (điểm cao nhất)
+            if (user.interest === product.category) {
+                score += 5;
+                reasons.push(`Phù hợp sở thích "${categoryDisplayNames[user.interest] || user.interest}" của bạn.`);
+            } else if (user.interest === "entertainment" && (product.category === "lighting" || product.category === "security")) {
+                score += 2; 
+                reasons.push("Gợi ý chéo: Người thích giải trí.");
+            } else if (user.interest === "kitchen" && product.category === "utility") {
+                score += 1;
+                reasons.push("Gợi ý chéo: Người thích nội trợ.");
+            }
+            
+            // 2. Khớp ngân sách
+            if (user.budget === "high") {
+                score += 2;
+                reasons.push("Phù hợp ngân sách cao.");
+            } else if (user.budget === "medium") {
+                if (product.price_range === "medium" || product.price_range === "low") {
+                    score += 3;
+                    reasons.push("Phù hợp ngân sách vừa.");
+                }
+            } else if (user.budget === "low") {
+                if (product.price_range === "low") {
+                    score += 4;
+                    reasons.push("Rất phù hợp ngân sách tiết kiệm.");
+                } else {
+                    score -= 2; // Phạt nhẹ nếu đắt
+                }
+            }
+
+            // 3. Khớp tính năng "AI" (nếu người dùng yêu công nghệ)
+            if (user.name.includes("Yêu công nghệ") && product.features.includes("AI")) {
+                score += 3;
+                reasons.push("Có tính năng 'AI' bạn quan tâm.");
+            }
+
+            // === PHẦN THAY ĐỔI CHÍNH ===
+            // MỚI: 4. Áp dụng Vòng lặp phản hồi (Feedback Loop) - CẬP NHẬT
+            // Giờ đây chúng ta kiểm tra SỞ THÍCH DANH MỤC
+            
+            const userFeedback = simulatedUserInterests[user.id] || {};
+            const productCategory = product.category; // Lấy danh mục của sản phẩm đang tính điểm
+            
+            if (userFeedback[productCategory] === 1) { // Nếu user đã "Like" danh mục này
+                score += 10; // Tăng điểm mạnh
+                const categoryName = categoryDisplayNames[productCategory] || productCategory;
+                reasons.push(`Dựa trên sở thích mới của bạn về "${categoryName}".`);
+            
+            } else if (userFeedback[productCategory] === -1) { // Nếu user đã "Dislike" danh mục này
+                score -= 10; // Giảm điểm mạnh
+            }
+            // === KẾT THÚC PHẦN THAY ĐỔI ===
+            
+            return { score, reasons };
+        }
+
+        
+        /**
+         * Lấy danh sách sản phẩm gợi ý cho một user
+         */
+        function getRecommendations(userId) {
+            const user = users.find(u => u.id === parseInt(userId));
+            if (!user) return [];
+
+            // MỚI: Lấy danh sách sản phẩm bị chặn của user này
+            const userBannedList = bannedProducts[user.id] || {};
+
+            const recommendations = products.map(product => {
+                const { score, reasons } = calculateMatchScore(user, product);
+                return { product, score, reasons };
+            })
+            // Lọc ra những sản phẩm có điểm > 3
+            .filter(item => item.score > 3)
+            
+            // === PHẦN THAY ĐỔI CHÍNH ===
+            // Lọc bổ sung: Loại bỏ bất kỳ sản phẩm nào đã bị người dùng "chặn"
+            .filter(item => !userBannedList[item.product.id])
+            // === KẾT THÚC PHẦN THAY ĐỔI ===
+
+            // Sắp xếp theo điểm số giảm dần
+            .sort((a, b) => b.score - a.score);
+
+            return recommendations;
+        }
+
+        // --- 3. FRONTEND LAYER (Render giao diện) ---
+
+        const userSelect = document.getElementById('user-select');
+        const recommendationGrid = document.getElementById('recommendation-grid');
+        const allProductsGrid = document.getElementById('all-products-grid');
+        const recommendationTitle = document.getElementById('recommendation-title');
+        const filterToolbar = document.getElementById('filter-toolbar');
+        const chatbotSubtitle = document.getElementById('chatbot-subtitle');
+
+        /**
+         * CẬP NHẬT: Tạo HTML cho một thẻ sản phẩm
+         * Thêm (imageUrl), (reasons - XAI), (feedback buttons)
+         */
+        function createProductCard(product, score = null, reasons = []) {
+            const priceFormatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(product.price);
+            
+            // CẬP NHẬT: Dùng ảnh thật hoặc placeholder
+            const imageUrl = product.imageUrl || `https://placehold.co/600x400/e2e8f0/64748b?text=${encodeURIComponent(product.name)}`;
+
+            let scoreBadge = '';
+            if (score !== null) {
+                scoreBadge = `<span class="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">Điểm: ${score}</span>`;
+            }
+
+            // Tạo phần giải thích (XAI)
+            let reasonHtml = '';
+            if (reasons.length > 0) {
+                reasonHtml = `
+                    <div class="mt-3 pt-3 border-t border-gray-100">
+                        <p class="text-xs font-semibold text-gray-700 mb-1">Gợi ý vì:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            ${reasons.map(r => `<li class="text-xs text-gray-600">${r}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            // MỚI: Tạo nút Feedback
+            const feedbackHtml = `
+                <div class="mt-4 flex justify-end space-x-2">
+                    <button class="feedback-btn dislike-btn" data-product-id="${product.id}" data-feedback="-1" title="Không thích">👎</button>
+                    <button class="feedback-btn like-btn" data-product-id="${product.id}" data-feedback="1" title="Thích">👍</button>
+                </div>
+            `;
+
+            return `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col justify-between transform transition-transform duration-300 hover:scale-[1.02]">
+                    <div>
+                        <div class="relative">
+                            <img class="w-full h-48 object-cover" src="${imageUrl}" alt="${product.name}" onerror="this.src='https://placehold.co/600x400/e2e8f0/64748b?text=Image+Error'">
+                            ${scoreBadge}
+                        </div>
+                        <div class="p-4">
+                            <div class="text-sm text-gray-500 font-medium">${product.brand}</div>
+                            <h3 class="text-lg font-semibold text-gray-800 truncate">${product.name}</h3>
+                            <p class="text-xl font-bold text-blue-600 mt-1">${priceFormatted}</p>
+                            <p class="text-sm text-gray-600 mt-2 h-10">${product.description}</p>
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                ${product.features.map(feature => `
+                                    <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${feature}</span>
+                                `).join('')}
+                            </div>
+                            ${reasonHtml}
+                        </div>
+                    </div>
+                    ${feedbackHtml}
+                </div>
+            `;
+        }
+
+        /**
+         * CẬP NHẬT: Render tất cả sản phẩm (với bộ lọc)
+         */
+        function renderAllProducts(filterCategory = null) {
+            allProductsGrid.innerHTML = '';
+            
+            // Lọc sản phẩm nếu có
+            const filteredProducts = filterCategory 
+                ? products.filter(p => p.category === filterCategory) 
+                : products;
+
+            if (filteredProducts.length === 0) {
+                allProductsGrid.innerHTML = '<p class="text-gray-600">Không có sản phẩm nào trong danh mục này.</p>';
+                return;
+            }
+
+            filteredProducts.forEach(product => {
+                allProductsGrid.innerHTML += createProductCard(product);
+            });
+        }
+
+        /**
+         * Render sản phẩm gợi ý
+         */
+        function renderRecommendations(userId) {
+            const user = users.find(u => u.id === parseInt(userId));
+            if (!user) return;
+            
+            recommendationTitle.textContent = `Gợi ý cho ${user.name}`;
+            recommendationGrid.innerHTML = '';
+            
+            const recommendations = getRecommendations(userId);
+
+            if (recommendations.length === 0) {
+                recommendationGrid.innerHTML = `<p class="text-gray-600 md:col-span-2 lg:col-span-3">Không tìm thấy gợi ý nào phù hợp. Hãy thử thích một vài sản phẩm bên dưới!</p>`;
+                return;
+            }
+
+            recommendations.forEach(item => {
+                recommendationGrid.innerHTML += createProductCard(item.product, item.score, item.reasons);
+            });
+        }
+
+        /**
+         * Khởi tạo bộ chọn người dùng
+         */
+        function initUserSelect() {
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.name;
+                userSelect.appendChild(option);
+            });
+            // Cập nhật người dùng mặc định
+            selectedUser = users[0];
+            chatbotSubtitle.textContent = `Đang tư vấn cho: ${selectedUser.name}`;
+        }
+        
+        /**
+         * MỚI: Khởi tạo thanh lọc
+         */
+        function initFilterToolbar() {
+            // Nút "Tất cả"
+            filterToolbar.innerHTML += `<button class="filter-btn active" data-category="all">Tất cả</button>`;
+            
+            // Các nút danh mục
+            categories.forEach(category => {
+                const displayName = categoryDisplayNames[category] || category;
+                filterToolbar.innerHTML += `<button class="filter-btn" data-category="${category}">${displayName}</button>`;
+            });
+
+            // Gán sự kiện click cho các nút lọc
+            filterToolbar.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    // Xóa class 'active' khỏi tất cả
+                    filterToolbar.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                    // Thêm class 'active' cho nút được click
+                    e.target.classList.add('active');
+                    
+                    const category = e.target.dataset.category;
+                    renderAllProducts(category === 'all' ? null : category);
+                }
+            });
+        }
+
+        /**
+         * MỚI: Xử lý sự kiện Feedback (Like/Dislike)
+         */
+        function handleFeedback(event) {
+            const button = event.target.closest('.feedback-btn');
+            if (!button) return;
+
+            const productId = parseInt(button.dataset.productId);
+            const feedbackScore = parseInt(button.dataset.feedback); // 1 cho like, -1 cho dislike
+            const userId = selectedUser.id;
+
+            const product = products.find(p => p.id === productId);
+            if (!product) return; 
+            const category = product.category;
+
+            // 1. Khởi tạo các "bộ nhớ" nếu chưa có
+            if (!simulatedUserInterests[userId]) simulatedUserInterests[userId] = {};
+            if (!bannedProducts[userId]) bannedProducts[userId] = {};
+
+            // 2. Xử lý "bộ nhớ" sở thích DANH MỤC (Category)
+            if (simulatedUserInterests[userId][category] === feedbackScore) {
+                // Nếu bấm lại nút cũ -> Bỏ chọn (toggle off)
+                delete simulatedUserInterests[userId][category];
+            } else {
+                // Nếu chọn mới hoặc đổi -> Ghi đè (toggle on)
+                simulatedUserInterests[userId][category] = feedbackScore;
+            }
+
+            // === PHẦN THAY ĐỔI CHÍNH ===
+            // 3. Xử lý "bộ nhớ" chặn SẢN PHẨM (Product)
+            let actionMessage = '';
+            const categoryName = categoryDisplayNames[category] || category;
+
+            if (feedbackScore === -1) { // Nếu bấm nút "Không thích"
+                if (bannedProducts[userId][productId]) {
+                    // Nếu sản phẩm đã bị chặn -> Bỏ chặn (vì người dùng bấm lần nữa)
+                    delete bannedProducts[userId][productId];
+                    actionMessage = `Đã bỏ chặn sản phẩm này. AI đang học lại...`;
+                } else {
+                    // Nếu sản phẩm chưa bị chặn -> Thêm vào danh sách chặn
+                    bannedProducts[userId][productId] = true;
+                    actionMessage = `Đã ghi nhận bạn không thích danh mục "${categoryName}" và sẽ ẩn sản phẩm này.`;
+                }
+            } else if (feedbackScore === 1) { // Nếu bấm nút "Thích"
+                // Nếu "Thích" một sản phẩm, nó chắc chắn không nên bị chặn nữa
+                if (bannedProducts[userId][productId]) {
+                    delete bannedProducts[userId][productId]; // Bỏ chặn
+                }
+                actionMessage = `Đã ghi nhận bạn thích danh mục "${categoryName}". AI đang cập nhật gợi ý...`;
+            }
+            // === KẾT THÚC PHẦN THAY ĐỔI ===
+
+            // 4. Thông báo (giả lập)
+            alert(actionMessage);
+
+            // 5. Render lại gợi ý ngay lập tức
+            renderRecommendations(userId);
+
+            // MỚI: 6. Lưu lại trạng thái "đã học" vào localStorage
+            saveRecommendationState();
+        }
+
+        // MỚI: Hàm lưu lịch sử chat vào localStorage
+        function saveChatHistory() {
+            if (!selectedUser) return;
+            // Lưu chat theo key riêng của mỗi user, ví dụ: 'chatHistory_1'
+            const key = `chatHistory_${selectedUser.id}`;
+            localStorage.setItem(key, JSON.stringify(chatConversation));
+        }
+
+        // MỚI: Hàm tải lịch sử chat từ localStorage và render ra màn hình
+        function loadAndRenderChatHistory(userId) {
+            const user = users.find(u => u.id === parseInt(userId));
+            if (!user) return;
+            
+            chatHistoryEl.innerHTML = ''; // Xóa tin nhắn cũ trên UI
+            const key = `chatHistory_${userId}`;
+            const savedHistory = localStorage.getItem(key);
+
+            if (savedHistory && JSON.parse(savedHistory).length > 0) {
+                // Nếu có lịch sử, tải vào biến và render
+                chatConversation = JSON.parse(savedHistory);
+                chatConversation.forEach(message => {
+                    // Dùng lại hàm cũ để vẽ: 'user' cho tin nhắn user, 'ai' cho tin nhắn 'model'
+                    const senderType = (message.role === 'model') ? 'ai' : 'user';
+                    addMessageToChat(senderType, message.parts[0].text);
+                });
+            } else {
+                // Nếu không có lịch sử, bắt đầu cuộc trò chuyện mới
+                chatConversation = [];
+                addMessageToChat('ai', `Xin chào ${user.name}! Tôi có thể giúp gì cho bạn hôm nay?`);
+            }
+        }
+
+        // MỚI: Hàm lưu trạng thái "học" (sở thích và sản phẩm chặn)
+        function saveRecommendationState() {
+            localStorage.setItem('reco_interests', JSON.stringify(simulatedUserInterests));
+            localStorage.setItem('reco_banned', JSON.stringify(bannedProducts));
+        }
+
+        // MỚI: Hàm tải trạng thái "học" từ localStorage
+        function loadRecommendationState() {
+            const savedInterests = localStorage.getItem('reco_interests');
+            const savedBanned = localStorage.getItem('reco_banned');
+
+            if (savedInterests) {
+                simulatedUserInterests = JSON.parse(savedInterests);
+            } else {
+                simulatedUserInterests = {}; // Khởi tạo rỗng nếu không có
+            }
+
+            if (savedBanned) {
+                bannedProducts = JSON.parse(savedBanned);
+            } else {
+                bannedProducts = {}; // Khởi tạo rỗng nếu không có
+            }
+        }
+
+        // --- 4. CHATBOT LAYER (Gemini API) ---
+
+        const chatHistoryEl = document.getElementById('chat-history');
+        const chatInput = document.getElementById('chat-input');
+        const sendButton = document.getElementById('send-button');
+
+        let chatConversation = []; // Sẽ lưu trữ lịch sử
+        let isLoading = false;
+
+        // CẬP NHẬT: System Prompt cơ bản (không còn danh sách user)
+        const baseSystemPrompt = `Bạn là một trợ lý ảo tư vấn bán hàng tại một cửa hàng thiết bị gia dụng thông minh. 
+        Nhiệm vụ của bạn là thân thiện, hiểu rõ sản phẩm và giúp khách hàng tìm được sản phẩm ưng ý.
+        
+        Đây là danh sách các sản phẩm (dưới dạng JSON) mà bạn có trong kho. Chỉ tư vấn dựa trên các sản phẩm này:
+        ${JSON.stringify(products)}
+
+        QUY TẮC:
+        1. Luôn thân thiện và chuyên nghiệp.
+        2. Khi người dùng hỏi chung chung (ví dụ: "tôi nên mua gì?"), hãy hỏi thêm về nhu cầu, ngân sách, hoặc sở thích của họ (ví dụ: "Bạn quan tâm đến thiết bị giải trí, nhà bếp hay tiện ích?").
+        3. Khi người dùng cung cấp đủ thông tin, hãy gợi ý một hoặc nhiều sản phẩm CỤ THỂ từ danh sách trên.
+        4. Trả lời ngắn gọn, tập trung vào các tính năng chính và lợi ích.
+        5. Nếu không biết, hãy nói thật, đừng bịa thông tin.
+        6. QUY TẮC QUAN TRỌNG NHẤT: TUYỆT ĐỐI KHÔNG SỬ DỤNG Markdown dưới mọi hình thức (ví dụ: không dùng **dấu sao** để in đậm, không dùng gạch đầu dòng *). Chỉ sử dụng văn bản thuần túy (plain text) để trả lời.`;
+
+        /**
+         * Thêm tin nhắn vào giao diện chat
+         */
+        function addMessageToChat(sender, message) {
+            let bubble;
+            if (sender === 'user') {
+                bubble = `...`; // (Giữ nguyên như code cũ)
+            } else { // 'ai'
+                bubble = `...`; // (Giữ nguyên như code cũ)
+            }
+            // (Copy code từ file cũ của bạn vào đây)
+        }
+        
+        // (Copy hàm addMessageToChat, showLoading từ file cũ của bạn vào đây)
+        // ...
+        // START: Copy hàm addMessageToChat
+        function addMessageToChat(sender, message) {
+            let bubble;
+            if (sender === 'user') {
+                bubble = `
+                    <div class="flex justify-end">
+                        <div class="bg-gray-200 text-gray-800 p-3 rounded-lg max-w-xs">
+                            <p>${message}</p>
+                        </div>
+                        <span class="flex-shrink-0 bg-gray-500 text-white text-sm font-semibold rounded-full h-8 w-8 items-center justify-center flex ml-3">User</span>
+                    </div>
+                `;
+            } else { // 'ai'
+                bubble = `
+                    <div class="flex">
+                        <span class="flex-shrink-0 bg-blue-500 text-white text-sm font-semibold rounded-full h-8 w-8 items-center justify-center flex mr-3">AI</span>
+                        <div class="bg-blue-100 text-gray-800 p-3 rounded-lg max-w-xs">
+                            <p>${message}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            chatHistoryEl.innerHTML += bubble;
+            chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+        }
+        // END: Copy hàm addMessageToChat
+        
+        // START: Copy hàm showLoading
+        function showLoading(show) {
+            let loadingEl = document.getElementById('loading-indicator');
+            if (show) {
+                if (!loadingEl) {
+                    loadingEl = document.createElement('div');
+                    loadingEl.id = 'loading-indicator';
+                    loadingEl.classList.add('flex');
+                    loadingEl.innerHTML = `
+                        <span class="flex-shrink-0 bg-blue-500 text-white text-sm font-semibold rounded-full h-8 w-8 items-center justify-center flex mr-3">AI</span>
+                        <div class="bg-blue-100 text-gray-800 p-3 rounded-lg">
+                            <div class="loader"></div>
+                        </div>
+                    `;
+                    chatHistoryEl.appendChild(loadingEl);
+                    chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+                }
+            } else {
+                if (loadingEl) {
+                    loadingEl.remove();
+                }
+            }
+        }
+        // END: Copy hàm showLoading
+
+
+        /**
+         * CẬP NHẬT: Xử lý khi người dùng gửi tin nhắn
+         * Giờ đây sẽ gửi kèm "bối cảnh" người dùng cho API
+         */
+        async function handleChatSend() {
+            const message = chatInput.value.trim();
+            if (message === '' || isLoading) return;
+
+            isLoading = true;
+            chatInput.value = '';
+            addMessageToChat('user', message);
+            showLoading(true);
+
+            // Thêm tin nhắn mới vào lịch sử
+            chatConversation.push({ role: "user", parts: [{ text: message }] });
+            saveChatHistory();
+
+            // API Gemini
+            const apiKey = "AIzaSyBKO8CFNSqRubvyIoUv6HclJaEvN2m1Acs"; // API key (giữ nguyên)
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            // MỚI: Tạo bối cảnh động cho chatbot
+            const userContextPrompt = `
+                ---
+                BỐI CẢNH NGƯỜI DÙNG HIỆN TẠI (Rất quan trọng):
+                Bạn đang tư vấn cho: ${selectedUser.name}.
+                - Tuổi: ${selectedUser.age}
+                - Ngân sách: ${selectedUser.budget}
+                - Sở thích chính: ${selectedUser.interest}
+                Hãy cá nhân hóa lời chào và tư vấn của bạn dựa trên thông tin này! Ví dụ: chào "An", và tập trung vào sở thích "entertainment" của An.
+                ---
+            `;
+            
+            // Kết hợp prompt cơ bản và bối cảnh động
+            const finalSystemPrompt = baseSystemPrompt + userContextPrompt;
+
+            const payload = {
+                systemInstruction: {
+                    parts: [{ text: finalSystemPrompt }]
+                },
+                contents: chatConversation // Gửi toàn bộ lịch sử
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const aiMessage = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiMessage) {
+                    addMessageToChat('ai', aiMessage);
+                    chatConversation.push({ role: "model", parts: [{ text: aiMessage }] });
+                    saveChatHistory();
+                } else {
+                    addMessageToChat('ai', "Rất tiếc, tôi gặp lỗi khi xử lý yêu cầu của bạn. (Không có phản hồi)");
+                }
+
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                addMessageToChat('ai', "Rất tiếc, tôi đang gặp sự cố kỹ thuật. Bạn vui lòng thử lại sau.");
+            } finally {
+                isLoading = false;
+                showLoading(false);
+            }
+        }
+        
+        // (Copy hàm fetchWithBackoff từ file cũ của bạn vào đây)
+        // ...
+        // START: Copy hàm fetchWithBackoff
+        async function fetchWithBackoff(url, options, maxRetries = 5, baseDelay = 1000) {
+            let delay = baseDelay;
+            for (let i = 0; i < maxRetries; i++) {
+                const response = await fetch(url, options);
+                if (response.status !== 429) {
+                    return response;
+                }
+                const jitter = Math.random() * delay * 0.5;
+                await new Promise(resolve => setTimeout(resolve, delay + jitter));
+                delay *= 2;
+            }
+            throw new Error("API throttling (429) - Max retries exceeded.");
+        }
+        // END: Copy hàm fetchWithBackoff
+
+
+        // --- 5. INITIALIZATION (Khởi chạy) ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Khởi tạo
+            initUserSelect();
+            initFilterToolbar(); // MỚI
+            renderAllProducts(); // Mặc định hiển thị tất cả
+            
+            // MỚI: Tải trạng thái "đã học" từ lần trước
+            loadRecommendationState();
+            
+            // Render gợi ý cho người dùng đầu tiên
+            if (users.length > 0) {
+                renderRecommendations(users[0].id)
+                loadAndRenderChatHistory(users[0].id);
+            }
+
+            userSelect.addEventListener('change', (e) => {
+                const newUserId = parseInt(e.target.value);
+                selectedUser = users.find(u => u.id === newUserId);
+                chatbotSubtitle.textContent = `Đang tư vấn cho: ${selectedUser.name}`;
+                renderRecommendations(newUserId);
+                
+                // MỚI: Tải lịch sử chat của user mới, thay vì reset
+                loadAndRenderChatHistory(newUserId);
+            });
+
+            sendButton.addEventListener('click', handleChatSend);
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleChatSend();
+                }
+            });
+            
+            // MỚI: Gán sự kiện chung cho Feedback
+            document.body.addEventListener('click', handleFeedback);
+        });
+
+    </script>
+</body>
+</html>
